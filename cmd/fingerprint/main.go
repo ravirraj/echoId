@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/ravirraj/echoid/internal/audio"
+	"github.com/ravirraj/echoid/internal/spectogram"
 )
 
 func main() {
@@ -31,5 +32,13 @@ func main() {
 		fmt.Printf("%.5f\n", samples[i])
 		// fmt.Println(samples[i])
 	}
+
+	frame , err := spectogram.GenSpectogram(samples)
+	fmt.Println(frame)
+	res := spectogram.GenerateHann(frame)
+	fmt.Println(res[0])
+	fmt.Println(res[frame/2])
+	fmt.Println(res[frame-1])
+
 
 }
