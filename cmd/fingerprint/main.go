@@ -34,11 +34,12 @@ func main() {
 	}
 
 	frame , err := spectogram.GenSpectogram(samples)
-	fmt.Println(frame)
-	res := spectogram.GenerateHann(frame)
-	fmt.Println(res[0])
-	fmt.Println(res[frame/2])
-	fmt.Println(res[frame-1])
+	_=frame
+	// fmt.Println(frame)
+	// res := spectogram.GenerateHann(frame)
+	// fmt.Println(res[0])
+	// fmt.Println(res[frame/2])
+	// fmt.Println(res[frame-1])
 
 
 }

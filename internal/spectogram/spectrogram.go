@@ -1,15 +1,33 @@
 package spectogram
 
-import "math"
+import (
+	"math"
+)
 
 func GenSpectogram(samples []float64) (int, error) {
 
 	windowSize := 2048
 	hopSize := 512
-	frameCount := 0
 
+	frameCount := 0
+	// GenerateHann()
+	hann := GenerateHann(windowSize)
 	for i := 0; i+windowSize <= len(samples); i += hopSize {
 		// fmt.Println(samples[i])
+
+		rawframe := samples[i : i+windowSize]
+		frameCopy := make([]float64, windowSize)
+
+		// frameCopy = append(frameCopy, rawframe...)
+		copy(frameCopy, rawframe)
+
+		for j := 0; j < windowSize; j++ {
+
+			frameCopy[j] *= hann[j]
+			// fmt.Println(frame)
+
+		}
+
 		frameCount++
 	}
 
