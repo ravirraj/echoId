@@ -3,16 +3,29 @@ package spectogram
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"gonum.org/v1/gonum/dsp/fourier"
 )
 
-func GenSpectogram(samples []float64) (int, error) {
+type Peak struct {
+	TimeIndex int
+	FreqIndex int
+	Magnitude float64
+}
+type Bin struct {
+	Index int
+	Value float64
+}
+
+func GenSpectogram(samples []float64) ([][]float64, error) {
 
 	windowSize := 2048
 	hopSize := 512
 	// var result []float64
 	spectogram := [][]float64{}
+
+	peaks := []Peak{}
 
 	frameCount := 0
 	// GenerateHann()
@@ -39,15 +52,22 @@ func GenSpectogram(samples []float64) (int, error) {
 
 		n := len(output)
 		mangitudes := make([]float64, n)
-
+		bins := make([]Bin, n)
 		for k := 0; k < n; k++ {
 			realPart := real(output[k])
 			imgPart := imag(output[k])
 
 			mang := realPart*realPart + imgPart*imgPart
 			mangitudes[k] = mang
+
+			bins[k] = Bin{Index: k, Value: mangitudes[k]}
 			// result = append(result, mang)
 
+		}
+		sort.Slice(bins, func(i, j int) bool { return bins[i].Value > bins[j].Value })
+
+		for p := 0; p < 5; p++ {
+			peaks = append(peaks, Peak{TimeIndex: frameCount, FreqIndex: bins[p].Index, Magnitude: bins[p].Value})
 		}
 		spectogram = append(spectogram, mangitudes)
 
@@ -57,12 +77,12 @@ func GenSpectogram(samples []float64) (int, error) {
 	}
 	fmt.Println(spectogram[0][100])
 	fmt.Println(len(spectogram[0]))
-
+	fmt.Println("total peaks ", len(peaks))
 
 	// fmt.Println(result[0])
 	// fmt.Println(real(output[0]))
 
-	return frameCount, nil
+	return spectogram, nil
 
 }
 
