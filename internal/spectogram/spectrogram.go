@@ -18,6 +18,13 @@ type Bin struct {
 	Value float64
 }
 
+type Fingerprint struct {
+	Freq1      int
+	Freq2      int
+	DeltaTime  int
+	AnchorTime int
+}
+
 func GenSpectogram(samples []float64) ([][]float64, error) {
 
 	windowSize := 2048
@@ -26,6 +33,9 @@ func GenSpectogram(samples []float64) ([][]float64, error) {
 	spectogram := [][]float64{}
 
 	peaks := []Peak{}
+	fingerprints := []Fingerprint{}
+	fanOut := 5
+	maxDelta := 50 // frames
 
 	frameCount := 0
 	// GenerateHann()
@@ -75,10 +85,26 @@ func GenSpectogram(samples []float64) ([][]float64, error) {
 		// fmt.Println(real(output[0]))
 
 	}
+
+	for i := 0; i < len(peaks); i++ {
+	innerLoop:
+		for j := i + 1; j < len(peaks) && j < i+fanOut; j++ {
+			deltatime := peaks[j].TimeIndex - peaks[i].TimeIndex
+			if deltatime > maxDelta {
+				break innerLoop
+			}
+			fingerprints = append(fingerprints, Fingerprint{
+				Freq1:      peaks[i].FreqIndex,
+				Freq2:      peaks[j].FreqIndex,
+				DeltaTime:  deltatime,
+				AnchorTime: peaks[i].TimeIndex,
+			})
+		}
+	}
 	fmt.Println(spectogram[0][100])
 	fmt.Println(len(spectogram[0]))
 	fmt.Println("total peaks ", len(peaks))
-
+	fmt.Println("total fingerprints:", len(fingerprints))
 	// fmt.Println(result[0])
 	// fmt.Println(real(output[0]))
 
