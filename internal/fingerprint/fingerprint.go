@@ -1,6 +1,6 @@
 package fingerprint
 
-import "github.com/ravirraj/echoid/internal/peak"
+import "github.com/ravirraj/echoid/internal/peaks"
 
 // import "yourmodule/internal/peaks"
 
