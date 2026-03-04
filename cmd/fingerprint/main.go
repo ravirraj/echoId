@@ -5,7 +5,9 @@ import (
 	"os"
 
 	"github.com/ravirraj/echoid/internal/audio"
-	"github.com/ravirraj/echoid/internal/spectogram"
+	"github.com/ravirraj/echoid/internal/fingerprint"
+	"github.com/ravirraj/echoid/internal/peak"
+	spectrogram "github.com/ravirraj/echoid/internal/spectogram"
 )
 
 func main() {
@@ -16,30 +18,17 @@ func main() {
 
 	filePath := os.Args[1]
 
-	samples, sampleRate, err := audio.LoadWav(filePath)
+	samples, _, err := audio.LoadWav(filePath)
+
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	duration := float64(len(samples)) / float64(sampleRate)
+	spectrogram := spectrogram.GenerateSpectrogram(samples)
 
-	fmt.Println("Sample Rate:", sampleRate)
-	fmt.Println("Total Samples (mono):", len(samples))
-	fmt.Printf("Duration: %.2f seconds\n", duration)
+	peaks := peak.DetectPeaks(spectrogram)
 
-	fmt.Println("First 10 samples:")
-	for i := 0; i < 10 && i < len(samples); i++ {
-		fmt.Printf("%.5f\n", samples[i])
-		// fmt.Println(samples[i])
-	}
-
-	frame , err := spectogram.GenSpectogram(samples)
-	_=frame
-	// fmt.Println(frame)
-	// res := spectogram.GenerateHann(frame)
-	// fmt.Println(res[0])
-	// fmt.Println(res[frame/2])
-	// fmt.Println(res[frame-1])
-
+	fingerprints := fingerprint.GenerateFingerprints(peaks)
+	fmt.Println(fingerprints)
 
 }
