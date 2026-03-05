@@ -71,6 +71,11 @@ func main() {
 			return
 		}
 
+	case "listen":
+		err := recordAudio(10)
+		if err != nil {
+			return
+		}
 	default:
 		fmt.Println("unknown command:", os.Args[1])
 	}
@@ -135,5 +140,17 @@ func runMatch(file string) error {
 
 	fmt.Println("match:", song, "score:", score)
 
+	return nil
+}
+
+func recordAudio(duration int) error {
+	filePAth, err := audio.RecordAudio(duration)
+	if err != nil {
+		return err
+	}
+	err = runMatch(filePAth)
+	if err != nil {
+		return err
+	}
 	return nil
 }
