@@ -27,10 +27,14 @@ func main() {
 		addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 
 		file := addCmd.String("file", "", "audio file to index")
-		songID := addCmd.String("id", "", "song identifier")
-		fmt.Println(*file)
+		// songID := addCmd.String("id", *file, "song identifier")
 
 		addCmd.Parse(os.Args[2:])
+		songID := addCmd.String("id", *file, "song identifier")
+		addCmd.Parse(os.Args[2:])
+
+		fmt.Println(*file)
+		fmt.Println(*songID)
 
 		if *file == "" {
 			fmt.Println("please provide -file")
