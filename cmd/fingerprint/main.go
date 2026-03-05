@@ -81,7 +81,7 @@ func runAdd(file string, songID string) error {
 
 	index := db.NewIndex()
 
-	samples, err := audio.LoadWav(file)
+	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -115,7 +115,7 @@ func runMatch(file string) error {
 		return err
 	}
 
-	samples, err := audio.LoadWav(file)
+	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		fmt.Println("load error:", err)
 		return err

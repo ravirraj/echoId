@@ -3,6 +3,8 @@ package audio
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-audio/wav"
 	"github.com/hajimehoshi/go-mp3"
@@ -88,4 +90,18 @@ func LoadMp3(path string) ([]float64, error) {
 	}
 
 	return samples, nil
+}
+
+func LoadAudio(path string) ([]float64, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+
+	switch ext {
+	case ".wav":
+		return LoadWav(path)
+	case ".mp3":
+		return LoadMp3(path)
+	default:
+		return nil, fmt.Errorf("unsupported file , we support .wav,.mp3 only")
+	}
+
 }
