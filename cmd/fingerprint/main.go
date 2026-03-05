@@ -123,15 +123,14 @@ func runMatch(file string) error {
 	}
 	// fmt.Println(samples)
 
-
 	spec := spectrogram.GenerateSpectrogram(samples)
-	fmt.Println(spec[:30])
+	// fmt.Println(spec[:30])
 
 	p := peak.DetectPeaks(spec)
 
-	fmt.Println(p[:3])
+	// fmt.Println(p[:3])
 	query := fingerprint.GenerateFingerprints(p)
-	fmt.Println(query[:2])
+	// fmt.Println(query[:2])
 	song, score := matcher.Match(index, query)
 
 	fmt.Println("match:", song, "score:", score)
