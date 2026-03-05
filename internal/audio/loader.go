@@ -9,24 +9,24 @@ import (
 
 // []float64, int, error
 // []float64z, int, error
-func LoadWav(path string) ([]float64, int, error) {
+func LoadWav(path string) ([]float64, error) {
 
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 		// fmt.Println(err)
 	}
 
 	decoder := wav.NewDecoder(file)
 	if !decoder.IsValidFile() {
-		return nil, 0, fmt.Errorf("Invalid wav file ")
+		return nil, fmt.Errorf("Invalid wav file")
 		// fmt.Println(err)
 
 	}
 
 	buff, err := decoder.FullPCMBuffer()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 		// fmt.Println(err)
 
 	}
@@ -35,7 +35,7 @@ func LoadWav(path string) ([]float64, int, error) {
 
 	fmt.Println(decoder)
 
-	sampleRate := int(decoder.SampleRate)
+	// sampleRate := int(decoder.SampleRate)
 	numChannel := buff.Format.NumChannels
 	IntSamples := buff.AsIntBuffer().Data
 
@@ -56,10 +56,10 @@ func LoadWav(path string) ([]float64, int, error) {
 
 		}
 	} else {
-		return nil, 0, fmt.Errorf("unsupported channel count: %d", numChannel)
+		return nil, fmt.Errorf("unsupported channel count: %d", numChannel)
 
 	}
 
-	return samples, sampleRate, nil
+	return samples, nil
 
 }

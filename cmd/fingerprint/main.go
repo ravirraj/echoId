@@ -27,7 +27,8 @@ func main() {
 		addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 
 		file := addCmd.String("file", "", "audio file to index")
-		songID := addCmd.String("id", "song1", "song identifier")
+		songID := addCmd.String("id", "", "song identifier")
+		fmt.Println(*file)
 
 		addCmd.Parse(os.Args[2:])
 
@@ -36,7 +37,17 @@ func main() {
 			return
 		}
 
-		runAdd(*file, *songID)
+		// if *songID == "" {
+		// 	fmt.Println("Please Provide the id for the song")
+		// 	// return
+		// }
+
+		err := runAdd(*file, *songID)
+
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 	case "match":
 		matchCmd := flag.NewFlagSet("match", flag.ExitOnError)
@@ -50,7 +61,11 @@ func main() {
 			return
 		}
 
-		runMatch(*file)
+		err := runMatch(*file)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 	default:
 		fmt.Println("unknown command:", os.Args[1])
@@ -58,11 +73,16 @@ func main() {
 
 }
 
-func runAdd(file string, songID string) {
+func runAdd(file string, songID string) error {
 
 	index := db.NewIndex()
 
-	samples, _, err := audio.LoadWav(file)
+	samples, err := audio.LoadWav(file)
+	if err != nil {
+		fmt.Println(err)
+		return err
+
+	}
 
 	spec := spectrogram.GenerateSpectrogram(samples)
 
@@ -75,25 +95,26 @@ func runAdd(file string, songID string) {
 	err = index.Save("fingerprints.db")
 	if err != nil {
 		fmt.Println("save error:", err)
-		return
+		return err
 	}
 
 	fmt.Println("song indexed:", songID)
+	return nil
 
 }
 
-func runMatch(file string) {
+func runMatch(file string) error {
 
 	index, err := db.LoadIndex("fingerprints.db")
 	if err != nil {
 		fmt.Println("load error:", err)
-		return
+		return err
 	}
 
-	samples, _, err := audio.LoadWav(file)
+	samples, err := audio.LoadWav(file)
 	if err != nil {
 		fmt.Println("load error:", err)
-		return
+		return err
 	}
 
 	spec := spectrogram.GenerateSpectrogram(samples)
@@ -106,4 +127,5 @@ func runMatch(file string) {
 
 	fmt.Println("match:", song, "score:", score)
 
+	return nil
 }
