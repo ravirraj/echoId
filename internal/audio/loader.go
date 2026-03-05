@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/go-audio/wav"
+	"github.com/hajimehoshi/go-mp3"
 )
 
 // []float64, int, error
@@ -30,8 +31,6 @@ func LoadWav(path string) ([]float64, error) {
 		// fmt.Println(err)
 
 	}
-
-	_ = buff
 
 	fmt.Println(decoder)
 
@@ -62,4 +61,31 @@ func LoadWav(path string) ([]float64, error) {
 
 	return samples, nil
 
+}
+
+func LoadMp3(path string) ([]float64, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	decoder, err := mp3.NewDecoder(file)
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, decoder.Length())
+
+	_, err = decoder.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	samples := []float64{}
+
+	for i := 0; i < len(buf); i += 2 {
+		sample := int16(buf[i]) | int16(buf[i+1])<<8
+
+		samples = append(samples, float64(sample)/32768.0)
+	}
+
+	return samples, nil
 }
