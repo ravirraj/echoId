@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,30 +71,59 @@ func LoadMp3(path string) ([]float64, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	decoder, err := mp3.NewDecoder(file)
 	if err != nil {
 		return nil, err
 	}
-	buf := make([]byte, decoder.Length())
-
-	_, err = decoder.Read(buf)
-	if err != nil {
-		return nil, err
-	}
+	// fmt.Println(decoder.Length())
+	buf := make([]byte, 4096)
+	// fmt.Println("raw bytes:", buf[:20])
 
 	samples := []float64{}
 
-	for i := 0; i < len(buf); i += 2 {
-		sample := int16(buf[i]) | int16(buf[i+1])<<8
+	for {
 
-		samples = append(samples, float64(sample)/32768.0)
+		n, err := decoder.Read(buf)
+		// fmt.Println("raw bytes:", buf[:20])
+
+		if n == 0 {
+			break
+		}
+
+		// for i := 0; i+3 < n; i += 4 {
+
+		// 	left := int16(binary.LittleEndian.Uint16(buf[i : i+2]))
+		// 	right := int16(binary.LittleEndian.Uint16(buf[i+2 : i+4]))
+		// 	mono := (float64(left) + float64(right)) / 2.0
+
+		// 	samples = append(samples, mono/32768.0)
+		// }
+		for i := 0; i+1 < n; i += 2 {
+
+			sample := int16(binary.LittleEndian.Uint16(buf[i : i+2]))
+
+			samples = append(samples, float64(sample)/32768.0)
+		}
+
+		if err != nil {
+			break
+		}
 	}
+	// fmt.Println(decoder.SampleRate())
+	// fmt.Println(len(samples))
+	// fmt.Println("raw bytes:", buf[:20])
 
+	// fmt.Println(samples[:4])
+	fmt.Println(len(samples))
+	fmt.Printf("%.20f\n", samples[0])
+	fmt.Println(samples[0]*1000000000000000000000)
 	return samples, nil
 }
 
 func LoadAudio(path string) ([]float64, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+	fmt.Println(ext)
 
 	switch ext {
 	case ".wav":
