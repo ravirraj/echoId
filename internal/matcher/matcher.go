@@ -50,6 +50,8 @@
 package matcher
 
 import (
+	"fmt"
+
 	"github.com/ravirraj/echoid/internal/db"
 	"github.com/ravirraj/echoid/internal/fingerprint"
 )
@@ -99,8 +101,8 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 			}
 		}
 
-		// fmt.Println(maxOffsetVotes)
-		// fmt.Println("bestScore", bestScore)
+		fmt.Println(maxOffsetVotes)
+		fmt.Println("bestScore", bestScore)
 
 		if maxOffsetVotes > bestScore {
 			bestScore = maxOffsetVotes
@@ -130,7 +132,7 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 		minThreshold = 10
 	}
 
-	// fmt.Println("minimum threshold", minThreshold)
+	fmt.Println("minimum threshold", minThreshold)
 
 	if bestScore < minThreshold {
 		return "", 0

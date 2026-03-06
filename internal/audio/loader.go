@@ -40,6 +40,7 @@ func LoadWav(path string) ([]float64, error) {
 	// sampleRate := int(decoder.SampleRate)
 	numChannel := buff.Format.NumChannels
 	IntSamples := buff.AsIntBuffer().Data
+	fmt.Println("numChannel", numChannel)
 
 	var samples []float64
 
@@ -59,6 +60,7 @@ func LoadWav(path string) ([]float64, error) {
 		return nil, fmt.Errorf("unsupported channel count: %d", numChannel)
 
 	}
+	fmt.Println(IntSamples[:20])
 
 	return samples, nil
 
@@ -67,8 +69,10 @@ func LoadWav(path string) ([]float64, error) {
 func LoadMp3(path string) ([]float64, error) {
 	cmd := exec.Command(
 		"ffmpeg",
-		"-i",
-		path,
+		"-y",
+		"-i", path,
+		"-ac", "1",
+		"-ar", "44100",
 		"converted.wav",
 	)
 
@@ -110,7 +114,9 @@ func LoadAudio(path string) ([]float64, error) {
 	case ".mp3":
 		return LoadMp3(path)
 	default:
-		return nil, fmt.Errorf("unsupported file , we support .wav,.mp3 only")
+
+		return LoadMp3(path)
+		// return nil, fmt.Errorf("unsupported file , we support .wav,.mp3 only")
 	}
 
 }

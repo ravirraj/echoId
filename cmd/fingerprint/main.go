@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ravirraj/echoid/internal/audio"
 	"github.com/ravirraj/echoid/internal/db"
@@ -72,11 +73,42 @@ func main() {
 		}
 
 	case "listen":
+
 		fmt.Println("Recording.......")
 		err := recordAudio(10)
 		if err != nil {
 			return
 		}
+
+	case "youtube":
+		matchCmd := flag.NewFlagSet("match", flag.ExitOnError)
+		url := matchCmd.String("url", "", "audio url to downlaoad")
+
+		matchCmd.Parse(os.Args[2:])
+		if *url == "" {
+			fmt.Println("please provide -url")
+			return
+		}
+		fmt.Println("DOWNLAODING SONG...")
+		title, filePath, err := audio.DownloadAudio(*url)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		id := strings.Split(title, "")
+
+		err = runAdd(filePath, id[0])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = os.Remove(filePath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
 	default:
 		fmt.Println("unknown command:", os.Args[1])
 	}
@@ -96,11 +128,14 @@ func runAdd(file string, songID string) error {
 		index = db.NewIndex()
 	}
 
+	fmt.Println("LOADING AUDIO>>>>.....")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		return err
 	}
+	// fmt.Println("samples",samples[:20])
 
+	fmt.Println("Generating Fingerprints.....")
 	spec := spectrogram.GenerateSpectrogram(samples)
 
 	p := peak.DetectPeaks(spec)
