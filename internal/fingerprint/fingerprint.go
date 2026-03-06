@@ -1,6 +1,10 @@
 package fingerprint
 
-import "github.com/ravirraj/echoid/internal/peaks"
+import (
+	"sort"
+
+	peak "github.com/ravirraj/echoid/internal/peaks"
+)
 
 // import "yourmodule/internal/peaks"
 
@@ -15,9 +19,12 @@ func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 
 	fingerprints := []Fingerprint{}
 
-	fanOut := 5
+	fanOut := 10
 	maxDelta := 50
 
+	sort.Slice(peaksList, func(i, j int) bool {
+		return peaksList[i].TimeIndex < peaksList[j].TimeIndex
+	})
 	for i := 0; i < len(peaksList); i++ {
 
 		for j := i + 1; j < len(peaksList) && j < i+fanOut; j++ {

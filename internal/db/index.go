@@ -28,6 +28,8 @@ func (idx *Index) Add(songID string, fps []fingerprint.Fingerprint) {
 
 		hash := fingerprint.HashFingerprint(fp.Freq1, fp.Freq2, fp.DeltaTime)
 
+		// fmt.Println("Adding:", songID)
+
 		idx.Data[hash] = append(idx.Data[hash], Entry{
 			SongID:     songID,
 			AnchorTime: fp.AnchorTime,

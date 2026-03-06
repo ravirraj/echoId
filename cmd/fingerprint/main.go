@@ -84,33 +84,38 @@ func main() {
 
 func runAdd(file string, songID string) error {
 
-	index := db.NewIndex()
+	var index *db.Index
+
+	if _, err := os.Stat("fingerprints.db"); err == nil {
+		index, err = db.LoadIndex("fingerprints.db")
+		if err != nil {
+			return err
+		}
+	} else {
+		index = db.NewIndex()
+	}
 
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
-		fmt.Println(err)
 		return err
-
 	}
 
 	spec := spectrogram.GenerateSpectrogram(samples)
-	fmt.Println(samples[:20])
 
 	p := peak.DetectPeaks(spec)
 
 	fps := fingerprint.GenerateFingerprints(p)
+	fmt.Println("fingerprints:", len(fps))
 
 	index.Add(songID, fps)
 
 	err = index.Save("fingerprints.db")
 	if err != nil {
-		fmt.Println("save error:", err)
 		return err
 	}
 
 	fmt.Println("song indexed:", songID)
 	return nil
-
 }
 
 func runMatch(file string) error {
@@ -145,6 +150,7 @@ func runMatch(file string) error {
 
 func recordAudio(duration int) error {
 	filePAth, err := audio.RecordAudio(duration)
+	fmt.Println(filePAth)
 	if err != nil {
 		return err
 	}

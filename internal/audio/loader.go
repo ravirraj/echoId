@@ -47,13 +47,11 @@ func LoadWav(path string) ([]float64, error) {
 		for _, s := range IntSamples {
 			samples = append(samples, float64(s)/32768.0)
 		}
-	}
-
-	if numChannel == 2 {
+	} else if numChannel == 2 {
 		for i := 0; i < len(IntSamples); i += 2 {
-			left := i
-			right := i + 2
-			mono := (right + left) / 2
+			left := IntSamples[i]
+			right := IntSamples[i+1]
+			mono := (left + right) / 2
 			samples = append(samples, float64(mono)/32768.0)
 
 		}
@@ -117,7 +115,7 @@ func LoadMp3(path string) ([]float64, error) {
 	// fmt.Println(samples[:4])
 	fmt.Println(len(samples))
 	fmt.Printf("%.20f\n", samples[0])
-	fmt.Println(samples[0]*1000000000000000000000)
+	fmt.Println(samples[0] * 1000000000000000000000)
 	return samples, nil
 }
 

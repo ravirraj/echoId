@@ -58,6 +58,9 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 
 	offsetVotes := make(map[string]map[int]int)
 
+	// if len(query) > 500 {
+	// 	query = query[:500]
+	// }
 	for _, fp := range query {
 
 		hash := fingerprint.HashFingerprint(fp.Freq1, fp.Freq2, fp.DeltaTime)
@@ -66,16 +69,20 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 		if !ok {
 			continue
 		}
+		// println("hash matched")
 
 		for _, match := range matches {
 
 			offset := match.AnchorTime - fp.AnchorTime
+			// fmt.Println(offset)
 
 			if _, ok := offsetVotes[match.SongID]; !ok {
 				offsetVotes[match.SongID] = make(map[int]int)
 			}
 
 			offsetVotes[match.SongID][offset]++
+			// fmt.Println("hash matches:", len(matches))
+
 		}
 	}
 
@@ -84,14 +91,25 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 
 	for songID, offsets := range offsetVotes {
 
-		for _, count := range offsets {
+		maxOffsetVotes := 0
 
-			if count > bestScore {
-				bestScore = count
-				bestSong = songID
+		for _, count := range offsets {
+			if count > maxOffsetVotes {
+				maxOffsetVotes = count
 			}
 		}
+
+		if maxOffsetVotes > bestScore {
+			bestScore = maxOffsetVotes
+			bestSong = songID
+		}
+	}
+	if bestScore < 10 {
+		return "", 0
 	}
 
 	return bestSong, bestScore
+
+	// fmt.Println(bestSong)
+	// return bestSong, bestScore
 }
