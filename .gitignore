@@ -31,7 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 
+record.wav
 
 fingerprints.db
-
-record.wav
