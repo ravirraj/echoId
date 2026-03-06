@@ -17,29 +17,45 @@ func DetectPeaks(spectrogram [][]float64) []Peak {
 
 	peaks := []Peak{}
 
-	for frameIndex, magnitudes := range spectrogram {
-
-		n := len(magnitudes)
-
-		bins := make([]Bin, n)
-
-		for i := 0; i < n; i++ {
-			bins[i] = Bin{
-				Index: i,
-				Value: magnitudes[i],
-			}
+	// Calculate global magnitude threshold (use median-based approach)
+	var allMagnitudes []float64
+	for _, magnitudes := range spectrogram {
+		for _, mag := range magnitudes {
+			allMagnitudes = append(allMagnitudes, mag)
 		}
+	}
+	sort.Float64s(allMagnitudes)
+	threshold := allMagnitudes[len(allMagnitudes)*75/100] // 75th percentile
 
-		sort.Slice(bins, func(i, j int) bool {
-			return bins[i].Value > bins[j].Value
-		})
+	for frameIndex, magnitudes := range spectrogram {
+		// Find local maxima with neighborhood check
+		for freqIndex := 3; freqIndex < len(magnitudes)-3; freqIndex++ {
+			mag := magnitudes[freqIndex]
 
-		for p := 0; p < 5; p++ {
-			peaks = append(peaks, Peak{
-				TimeIndex: frameIndex,
-				FreqIndex: bins[p].Index,
-				Magnitude: bins[p].Value,
-			})
+			// Must be above threshold
+			if mag < threshold {
+				continue
+			}
+
+			// Must be local maximum in frequency domain (check ±3 bins)
+			isLocalMax := true
+			for offset := -3; offset <= 3; offset++ {
+				if offset == 0 {
+					continue
+				}
+				if magnitudes[freqIndex+offset] >= mag {
+					isLocalMax = false
+					break
+				}
+			}
+
+			if isLocalMax {
+				peaks = append(peaks, Peak{
+					TimeIndex: frameIndex,
+					FreqIndex: freqIndex,
+					Magnitude: mag,
+				})
+			}
 		}
 	}
 

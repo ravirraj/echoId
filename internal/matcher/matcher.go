@@ -104,7 +104,15 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 			bestSong = songID
 		}
 	}
-	if bestScore < 10 {
+
+	// Dynamic threshold: require at least 5% of query fingerprints to match
+	// or minimum of 50 matches, whichever is higher
+	minThreshold := len(query) * 5 / 100
+	if minThreshold < 50 {
+		minThreshold = 50
+	}
+
+	if bestScore < minThreshold {
 		return "", 0
 	}
 

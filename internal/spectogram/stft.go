@@ -3,7 +3,6 @@ package spectrogram
 import (
 	"math"
 
-	
 	"gonum.org/v1/gonum/dsp/fourier"
 )
 
@@ -30,13 +29,19 @@ func GenerateSpectrogram(samples []float64) [][]float64 {
 
 		output := fft.Coefficients(nil, frameCopy)
 
-		n := len(output)
-		magnitudes := make([]float64, n)
+		// Only use first half of FFT (remove symmetric part) and limit to useful frequency range
+		// Use up to bin 512 (covers 0-12kHz at 48kHz sample rate, which is the most important range)
+		maxBin := 512
+		if len(output)/2 < maxBin {
+			maxBin = len(output) / 2
+		}
 
-		for k := 0; k < n; k++ {
+		magnitudes := make([]float64, maxBin)
+
+		for k := 0; k < maxBin; k++ {
 			realPart := real(output[k])
 			imagPart := imag(output[k])
-			magnitudes[k] = realPart*realPart + imagPart*imagPart
+			magnitudes[k] = math.Sqrt(realPart*realPart + imagPart*imagPart)
 		}
 
 		spectrogram = append(spectrogram, magnitudes)
