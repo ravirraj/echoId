@@ -1,7 +1,6 @@
 package audio
 
 import (
-	"fmt"
 	"os/exec"
 	"strconv"
 )
@@ -17,7 +16,7 @@ func RecordAudio(duration int) (string, error) {
 		"record.wav",
 	)
 	err := cmd.Run()
-	fmt.Println("Recording...")
+	// fmt.Println("Recording...")
 	if err != nil {
 		return "", err
 	}

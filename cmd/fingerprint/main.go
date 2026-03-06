@@ -72,6 +72,7 @@ func main() {
 		}
 
 	case "listen":
+		fmt.Println("Recording.......")
 		err := recordAudio(10)
 		if err != nil {
 			return
