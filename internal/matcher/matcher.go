@@ -99,6 +99,9 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 			}
 		}
 
+		// fmt.Println(maxOffsetVotes)
+		// fmt.Println("bestScore", bestScore)
+
 		if maxOffsetVotes > bestScore {
 			bestScore = maxOffsetVotes
 			bestSong = songID
@@ -107,17 +110,30 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 
 	// Dynamic threshold: require at least 5% of query fingerprints to match
 	// or minimum of 50 matches, whichever is higher
-	minThreshold := len(query) * 5 / 100
-	if minThreshold < 50 {
-		minThreshold = 50
+	// minThreshold := len(query) * 5 / 100
+	// if minThreshold < 50 {
+	// 	minThreshold = 50
+	// }
+
+	// fmt.Println("minimum threshold",minThreshold)
+
+	// if bestScore < minThreshold {
+	// 	return "", 0
+	// }
+
+	// return bestSong, bestScore
+
+	// minThreshold := len(query) * 5 / 100
+	minThreshold := len(query) / 20
+
+	if minThreshold < 10 {
+		minThreshold = 10
 	}
+
+	// fmt.Println("minimum threshold", minThreshold)
 
 	if bestScore < minThreshold {
 		return "", 0
 	}
-
 	return bestSong, bestScore
-
-	// fmt.Println(bestSong)
-	// return bestSong, bestScore
 }

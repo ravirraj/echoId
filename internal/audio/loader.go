@@ -1,14 +1,14 @@
 package audio
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/go-audio/wav"
-	"github.com/hajimehoshi/go-mp3"
+	// "github.com/hajimehoshi/go-mp3"
 )
 
 // []float64, int, error
@@ -65,60 +65,41 @@ func LoadWav(path string) ([]float64, error) {
 }
 
 func LoadMp3(path string) ([]float64, error) {
-	file, err := os.Open(path)
+	cmd := exec.Command(
+		"ffmpeg",
+		"-i",
+		path,
+		"converted.wav",
+	)
+
+	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	decoder, err := mp3.NewDecoder(file)
+
+	mainDir := filepath.Join(dir, "temp", "converted")
+	cmd.Dir = mainDir
+
+	_, err = cmd.Output()
+
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println(decoder.Length())
-	buf := make([]byte, 4096)
-	// fmt.Println("raw bytes:", buf[:20])
 
-	samples := []float64{}
+	inputPath := filepath.Join(mainDir, "converted.wav")
 
-	for {
-
-		n, err := decoder.Read(buf)
-		// fmt.Println("raw bytes:", buf[:20])
-
-		if n == 0 {
-			break
-		}
-
-		// for i := 0; i+3 < n; i += 4 {
-
-		// 	left := int16(binary.LittleEndian.Uint16(buf[i : i+2]))
-		// 	right := int16(binary.LittleEndian.Uint16(buf[i+2 : i+4]))
-		// 	mono := (float64(left) + float64(right)) / 2.0
-
-		// 	samples = append(samples, mono/32768.0)
-		// }
-		for i := 0; i+1 < n; i += 2 {
-
-			sample := int16(binary.LittleEndian.Uint16(buf[i : i+2]))
-
-			samples = append(samples, float64(sample)/32768.0)
-		}
-
-		if err != nil {
-			break
-		}
+	samples, err := LoadWav(inputPath)
+	if err != nil {
+		return nil, err
 	}
-	// fmt.Println(decoder.SampleRate())
-	// fmt.Println(len(samples))
-	// fmt.Println("raw bytes:", buf[:20])
 
-	// fmt.Println(samples[:4])
-	fmt.Println(len(samples))
-	fmt.Printf("%.20f\n", samples[0])
-	fmt.Println(samples[0] * 1000000000000000000000)
+	err = os.Remove(inputPath)
+	if err != nil {
+		return nil, err
+	}
+
 	return samples, nil
 }
-
 func LoadAudio(path string) ([]float64, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	fmt.Println(ext)

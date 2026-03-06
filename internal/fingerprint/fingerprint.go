@@ -19,8 +19,8 @@ func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 
 	fingerprints := []Fingerprint{}
 
-	fanOut := 10
-	maxDelta := 50
+	fanOut := 3
+	maxDelta := 30
 
 	sort.Slice(peaksList, func(i, j int) bool {
 		return peaksList[i].TimeIndex < peaksList[j].TimeIndex
