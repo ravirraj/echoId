@@ -290,6 +290,3 @@ go run ./cmd/fingerprint listen
 
 ---
 
-## License
-
-No explicit license file is currently included. Add a `LICENSE` file if you want open-source distribution terms.
