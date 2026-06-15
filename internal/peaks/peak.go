@@ -1,61 +1,96 @@
 package peak
 
-import "sort"
+import (
+	"sort"
+)
 
-// type Peak struct {
-// 	TimeIndex int
-// 	FreqIndex int
-// 	Magnitude float64
-// }
-
-// type Bin struct {
-// 	Index int
-// 	Value float64
-// }
+type Peak struct {
+	TimeIndex int
+	FreqIndex int
+	Magnitude float64
+}
 
 func DetectPeaks(spectrogram [][]float64) []Peak {
 
-	peaks := []Peak{}
-
-	// Calculate global magnitude threshold (use median-based approach)
-	var allMagnitudes []float64
-	for _, magnitudes := range spectrogram {
-		for _, mag := range magnitudes {
-			allMagnitudes = append(allMagnitudes, mag)
-		}
+	if len(spectrogram) == 0 {
+		return nil
 	}
-	sort.Float64s(allMagnitudes)
-	threshold := allMagnitudes[len(allMagnitudes)*75/100] // 75th percentile
 
-	for frameIndex, magnitudes := range spectrogram {
-		// Find local maxima with neighborhood check
-		for freqIndex := 3; freqIndex < len(magnitudes)-3; freqIndex++ {
-			mag := magnitudes[freqIndex]
+	var peaks []Peak
 
-			// Must be above threshold
-			if mag < threshold {
+	const (
+		freqWindow       = 5
+		timeWindow       = 3
+		maxPeaksPerFrame = 8
+	)
+
+	for t := timeWindow; t < len(spectrogram)-timeWindow; t++ {
+
+		frame := spectrogram[t]
+
+		type candidate struct {
+			freq int
+			mag  float64
+		}
+
+		var candidates []candidate
+
+		var frameMags []float64
+		frameMags = append(frameMags, frame...)
+
+		sort.Float64s(frameMags)
+
+		frameThreshold := frameMags[len(frameMags)*90/100]
+
+		for f := freqWindow; f < len(frame)-freqWindow; f++ {
+
+			mag := frame[f]
+
+			if mag < frameThreshold {
 				continue
 			}
 
-			// Must be local maximum in frequency domain (check ±3 bins)
-			isLocalMax := true
-			for offset := -3; offset <= 3; offset++ {
-				if offset == 0 {
-					continue
-				}
-				if magnitudes[freqIndex+offset] >= mag {
-					isLocalMax = false
-					break
+			isMax := true
+
+			for dt := -timeWindow; dt <= timeWindow && isMax; dt++ {
+
+				neighborFrame := spectrogram[t+dt]
+
+				for df := -freqWindow; df <= freqWindow; df++ {
+
+					if dt == 0 && df == 0 {
+						continue
+					}
+
+					if neighborFrame[f+df] >= mag {
+						isMax = false
+						break
+					}
 				}
 			}
 
-			if isLocalMax {
-				peaks = append(peaks, Peak{
-					TimeIndex: frameIndex,
-					FreqIndex: freqIndex,
-					Magnitude: mag,
+			if isMax {
+				candidates = append(candidates, candidate{
+					freq: f,
+					mag:  mag,
 				})
 			}
+		}
+
+		sort.Slice(candidates, func(i, j int) bool {
+			return candidates[i].mag > candidates[j].mag
+		})
+
+		if len(candidates) > maxPeaksPerFrame {
+			candidates = candidates[:maxPeaksPerFrame]
+		}
+
+		for _, c := range candidates {
+			peaks = append(peaks, Peak{
+				TimeIndex: t,
+				FreqIndex: c.freq,
+				Magnitude: c.mag,
+			})
 		}
 	}
 

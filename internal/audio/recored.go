@@ -32,6 +32,5 @@ func RecordAudio(duration int) (string, error) {
 
 	// fmt.Println(string(output))
 
-
 	return "temp/record.wav", nil
 }

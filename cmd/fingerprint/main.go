@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/ravirraj/echoid/internal/audio"
 	"github.com/ravirraj/echoid/internal/db"
@@ -96,9 +95,7 @@ func main() {
 			return
 		}
 
-		id := strings.Split(title, "")
-
-		err = runAdd(filePath, id[0])
+		err = runAdd(filePath, title)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -139,6 +136,7 @@ func runAdd(file string, songID string) error {
 	spec := spectrogram.GenerateSpectrogram(samples)
 
 	p := peak.DetectPeaks(spec)
+	fmt.Println("Peaks:", len(p))
 
 	fps := fingerprint.GenerateFingerprints(p)
 	fmt.Println("fingerprints:", len(fps))
@@ -176,6 +174,8 @@ func runMatch(file string) error {
 
 	// fmt.Println(p[:3])
 	query := fingerprint.GenerateFingerprints(p)
+	fmt.Println("Query Peaks:", len(p))
+	fmt.Println("Query Fingerprints:", len(query))
 	// fmt.Println(query[:2])
 	song, score := matcher.Match(index, query)
 

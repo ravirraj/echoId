@@ -14,6 +14,7 @@ func DownloadAudio(url string) (string, string, error) {
 	client := youtube.Client{}
 
 	video, err := client.GetVideo(url)
+	fmt.Println(err)
 	if err != nil {
 		return "", "", err
 	}
@@ -40,7 +41,7 @@ func DownloadAudio(url string) (string, string, error) {
 
 	currentDir, _ := os.Getwd()
 
-	filePath := filepath.Join(currentDir, "temp","downloaded", title+".m4a")
+	filePath := filepath.Join(currentDir, "temp", "downloaded", title+".m4a")
 
 	file, err := os.Create(filePath)
 	if err != nil {

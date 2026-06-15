@@ -1,141 +1,103 @@
-// package matcher
-
-// import (
-// 	"github.com/ravirraj/echoid/internal/db"
-// 	"github.com/ravirraj/echoid/internal/fingerprint"
-// )
-
-// func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
-
-// 	offsetVotes := make(map[string]map[int]int)
-
-// 	for _, fp := range query {
-
-// 		hash := fingerprint.HashFingerprint(fp.Freq1, fp.Freq2, fp.DeltaTime)
-
-// 		matches, ok := index.Data[hash]
-// 		if !ok {
-// 			continue
-// 		}
-
-// 		for _, match := range matches {
-
-// 			offset := match.AnchorTime - fp.AnchorTime
-
-// 			if _, ok := offsetVotes[match.SongID]; !ok {
-// 				offsetVotes[match.SongID] = make(map[int]int)
-// 			}
-
-// 			offsetVotes[match.SongID][offset]++
-// 		}
-// 	}
-
-// 	bestSong := ""
-// 	bestScore := 0
-
-// 	for songID, offsets := range offsetVotes {
-
-// 		for _, count := range offsets {
-
-// 			if count > bestScore {
-// 				bestScore = count
-// 				bestSong = songID
-// 			}
-// 		}
-// 	}
-
-// 	return bestSong, bestScore
-// }
-
 package matcher
 
 import (
-	"fmt"
-
 	"github.com/ravirraj/echoid/internal/db"
 	"github.com/ravirraj/echoid/internal/fingerprint"
 )
 
 func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
+	matchedHashes := 0
 
 	offsetVotes := make(map[string]map[int]int)
 
-	// if len(query) > 500 {
-	// 	query = query[:500]
-	// }
+	const offsetBinSize = 5
+
 	for _, fp := range query {
 
-		hash := fingerprint.HashFingerprint(fp.Freq1, fp.Freq2, fp.DeltaTime)
+		hash := fingerprint.HashFingerprint(
+			fp.Freq1,
+			fp.Freq2,
+			fp.DeltaTime,
+		)
 
 		matches, ok := index.Data[hash]
 		if !ok {
 			continue
 		}
-		// println("hash matched")
+		matchedHashes++
 
 		for _, match := range matches {
 
 			offset := match.AnchorTime - fp.AnchorTime
-			// fmt.Println(offset)
+
+			// Bin nearby offsets together
+			offset = (offset / offsetBinSize) * offsetBinSize
 
 			if _, ok := offsetVotes[match.SongID]; !ok {
 				offsetVotes[match.SongID] = make(map[int]int)
 			}
 
 			offsetVotes[match.SongID][offset]++
-			// fmt.Println("hash matches:", len(matches))
-
 		}
 	}
 
 	bestSong := ""
 	bestScore := 0
+	secondBest := 0
 
 	for songID, offsets := range offsetVotes {
 
-		maxOffsetVotes := 0
+		songScore := 0
 
 		for _, count := range offsets {
-			if count > maxOffsetVotes {
-				maxOffsetVotes = count
+			if count > songScore {
+				songScore = count
 			}
 		}
 
-		fmt.Println(maxOffsetVotes)
-		fmt.Println("bestScore", bestScore)
-
-		if maxOffsetVotes > bestScore {
-			bestScore = maxOffsetVotes
+		if songScore > bestScore {
+			secondBest = bestScore
+			bestScore = songScore
 			bestSong = songID
+		} else if songScore > secondBest {
+			secondBest = songScore
 		}
 	}
-
-	// Dynamic threshold: require at least 5% of query fingerprints to match
-	// or minimum of 50 matches, whichever is higher
-	// minThreshold := len(query) * 5 / 100
-	// if minThreshold < 50 {
-	// 	minThreshold = 50
-	// }
-
-	// fmt.Println("minimum threshold",minThreshold)
-
-	// if bestScore < minThreshold {
-	// 	return "", 0
-	// }
-
-	// return bestSong, bestScore
-
-	// minThreshold := len(query) * 5 / 100
-	minThreshold := len(query) / 20
-
-	if minThreshold < 10 {
-		minThreshold = 10
+	println("Query Fingerprints:", len(query))
+	println("Matched Hashes:", matchedHashes)
+	println("Candidate Songs:", len(offsetVotes))
+	println("Best Score:", bestScore)
+	println("Second Best:", secondBest)
+	if bestScore == 0 {
+		return "", 0
 	}
 
-	fmt.Println("minimum threshold", minThreshold)
+	// Require minimum votes
+	minThreshold := max(len(query)/25, 15)
 
 	if bestScore < minThreshold {
 		return "", 0
 	}
+
+	// Confidence check
+	if secondBest > 0 {
+
+		confidence := float64(bestScore) / float64(secondBest)
+
+		// If top result is too close to second result,
+		// treat as ambiguous.
+		if confidence < 1.3 {
+			return "", 0
+		}
+	}
+	println("RETURNING:", bestSong, bestScore)
+
 	return bestSong, bestScore
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/go-audio/wav"
 	// "github.com/hajimehoshi/go-mp3"
@@ -105,18 +104,45 @@ func LoadMp3(path string) ([]float64, error) {
 	return samples, nil
 }
 func LoadAudio(path string) ([]float64, error) {
-	ext := strings.ToLower(filepath.Ext(path))
-	fmt.Println(ext)
 
-	switch ext {
-	case ".wav":
-		return LoadWav(path)
-	case ".mp3":
-		return LoadMp3(path)
-	default:
-
-		return LoadMp3(path)
-		// return nil, fmt.Errorf("unsupported file , we support .wav,.mp3 only")
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
 
+	tempDir := filepath.Join(dir, "temp", "normalized")
+
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return nil, err
+	}
+
+	outputPath := filepath.Join(tempDir, "normalized.wav")
+
+	cmd := exec.Command(
+		"ffmpeg",
+		"-y",
+		"-i", path,
+		"-ac", "1", // mono
+		"-ar", "44100", // sample rate
+		"-sample_fmt", "s16",
+		outputPath,
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"ffmpeg error: %v\n%s",
+			err,
+			string(output),
+		)
+	}
+
+	samples, err := LoadWav(outputPath)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = os.Remove(outputPath)
+
+	return samples, nil
 }
