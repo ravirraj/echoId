@@ -1,12 +1,16 @@
 package audio
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 )
 
+// RecordAudio captures audio from the default PulseAudio source for the
+// given duration (in seconds) and returns the absolute path to the
+// resulting WAV file.
 func RecordAudio(duration int) (string, error) {
 	strDuration := strconv.Itoa(duration)
 	cmd := exec.Command(
@@ -20,17 +24,15 @@ func RecordAudio(duration int) (string, error) {
 
 	dir, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("getwd: %w", err)
 	}
-	filePath := filepath.Join(dir, "/temp")
-	cmd.Dir = filePath
+	tempDir := filepath.Join(dir, "temp")
+	cmd.Dir = tempDir
 
 	_, err = cmd.Output()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("ffmpeg: %w", err)
 	}
 
-	// fmt.Println(string(output))
-
-	return "temp/record.wav", nil
+	return filepath.Join(tempDir, "record.wav"), nil
 }

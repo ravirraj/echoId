@@ -7,39 +7,33 @@ import (
 	"path/filepath"
 
 	"github.com/go-audio/wav"
-	// "github.com/hajimehoshi/go-mp3"
 )
 
-// []float64, int, error
-// []float64z, int, error
-func LoadWav(path string) ([]float64, error) {
+const (
+	normalizeSampleRate = 44100
+	normalizeChannels   = 1
+	normalizeBitDepth   = 16
+)
 
+func LoadWav(path string) ([]float64, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
-		// fmt.Println(err)
+		return nil, fmt.Errorf("open wav: %w", err)
 	}
+	defer file.Close()
 
 	decoder := wav.NewDecoder(file)
 	if !decoder.IsValidFile() {
-		return nil, fmt.Errorf("Invalid wav file")
-		// fmt.Println(err)
-
+		return nil, fmt.Errorf("invalid wav file")
 	}
 
 	buff, err := decoder.FullPCMBuffer()
 	if err != nil {
-		return nil, err
-		// fmt.Println(err)
-
+		return nil, fmt.Errorf("decode wav: %w", err)
 	}
 
-	fmt.Println(decoder)
-
-	// sampleRate := int(decoder.SampleRate)
 	numChannel := buff.Format.NumChannels
 	IntSamples := buff.AsIntBuffer().Data
-	fmt.Println("numChannel", numChannel)
 
 	var samples []float64
 
@@ -49,71 +43,25 @@ func LoadWav(path string) ([]float64, error) {
 		}
 	} else if numChannel == 2 {
 		for i := 0; i < len(IntSamples); i += 2 {
-			left := IntSamples[i]
-			right := IntSamples[i+1]
-			mono := (left + right) / 2
+			mono := (IntSamples[i] + IntSamples[i+1]) / 2
 			samples = append(samples, float64(mono)/32768.0)
-
 		}
 	} else {
 		return nil, fmt.Errorf("unsupported channel count: %d", numChannel)
-
-	}
-	fmt.Println(IntSamples[:20])
-
-	return samples, nil
-
-}
-
-func LoadMp3(path string) ([]float64, error) {
-	cmd := exec.Command(
-		"ffmpeg",
-		"-y",
-		"-i", path,
-		"-ac", "1",
-		"-ar", "44100",
-		"converted.wav",
-	)
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
-	mainDir := filepath.Join(dir, "temp", "converted")
-	cmd.Dir = mainDir
-
-	_, err = cmd.Output()
-
-	if err != nil {
-		return nil, err
-	}
-
-	inputPath := filepath.Join(mainDir, "converted.wav")
-
-	samples, err := LoadWav(inputPath)
-	if err != nil {
-		return nil, err
-	}
-
-	err = os.Remove(inputPath)
-	if err != nil {
-		return nil, err
 	}
 
 	return samples, nil
 }
+
 func LoadAudio(path string) ([]float64, error) {
-
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
 
 	tempDir := filepath.Join(dir, "temp", "normalized")
-
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
 
 	outputPath := filepath.Join(tempDir, "normalized.wav")
@@ -122,19 +70,15 @@ func LoadAudio(path string) ([]float64, error) {
 		"ffmpeg",
 		"-y",
 		"-i", path,
-		"-ac", "1", // mono
-		"-ar", "44100", // sample rate
+		"-ac", "1",
+		"-ar", "44100",
 		"-sample_fmt", "s16",
 		outputPath,
 	)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf(
-			"ffmpeg error: %v\n%s",
-			err,
-			string(output),
-		)
+		return nil, fmt.Errorf("ffmpeg: %w\n%s", err, string(output))
 	}
 
 	samples, err := LoadWav(outputPath)
@@ -142,7 +86,9 @@ func LoadAudio(path string) ([]float64, error) {
 		return nil, err
 	}
 
-	_ = os.Remove(outputPath)
+	if err := os.Remove(outputPath); err != nil {
+		return nil, fmt.Errorf("cleanup temp: %w", err)
+	}
 
 	return samples, nil
 }

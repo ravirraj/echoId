@@ -2,57 +2,123 @@ package audio
 
 import (
 	"fmt"
-	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-
-	"github.com/kkdai/youtube/v2"
+	"strings"
 )
 
-func DownloadAudio(url string) (string, string, error) {
-
-	client := youtube.Client{}
-
-	video, err := client.GetVideo(url)
-	fmt.Println(err)
-	if err != nil {
-		return "", "", err
+func findYtDlp() (string, error) {
+	if p, err := exec.LookPath("yt-dlp"); err == nil {
+		return p, nil
 	}
-
-	title := video.Title
-
-	formats := video.Formats.WithAudioChannels()
-
-	if len(formats) == 0 {
-		return "", "", fmt.Errorf("no audio formats found")
+	dirs := []string{
+		filepath.Join(os.Getenv("HOME"), ".local", "bin"),
+		"/usr/local/bin",
+		"/usr/bin",
+		"/opt/homebrew/bin",
 	}
-
-	best := &formats[0]
-	for i := range formats {
-		if formats[i].Bitrate > best.Bitrate {
-			best = &formats[i]
+	for _, d := range dirs {
+		p := filepath.Join(d, "yt-dlp")
+		if _, err := os.Stat(p); err == nil {
+			return p, nil
 		}
 	}
+	return "", fmt.Errorf("yt-dlp not found; install with: pip3 install --break-system-packages yt-dlp")
+}
 
-	stream, _, err := client.GetStream(video, best)
+func browserCookieArg() string {
+	for _, b := range []string{"firefox", "brave", "chromium", "chrome", "vivaldi"} {
+		var cfgDir string
+		switch b {
+		case "firefox":
+			cfgDir = filepath.Join(os.Getenv("HOME"), ".mozilla", "firefox")
+		case "chromium":
+			cfgDir = filepath.Join(os.Getenv("HOME"), ".config", "chromium")
+		case "chrome":
+			cfgDir = filepath.Join(os.Getenv("HOME"), ".config", "google-chrome")
+		default:
+			cfgDir = filepath.Join(os.Getenv("HOME"), ".config", b)
+		}
+		if _, err := os.Stat(cfgDir); err == nil {
+			return fmt.Sprintf("--cookies-from-browser=%s", b)
+		}
+	}
+	return ""
+}
+
+func sanitizeFilename(name string) string {
+	replacer := strings.NewReplacer(
+		"/", "_", "\\", "_", ":", "_",
+		"*", "_", "?", "_", "\"", "_",
+		"<", "_", ">", "_", "|", "_",
+	)
+	return replacer.Replace(name)
+}
+
+// DownloadAudio downloads audio from a YouTube URL using yt-dlp. It
+// returns the sanitized video title and the absolute path to the
+// downloaded audio file (in m4a format).
+func DownloadAudio(url string) (string, string, error) {
+	currentDir, err := os.Getwd()
 	if err != nil {
 		return "", "", err
 	}
 
-	currentDir, _ := os.Getwd()
+	downloadDir := filepath.Join(currentDir, "temp", "downloaded")
+	err = os.MkdirAll(downloadDir, os.ModePerm)
+	if err != nil {
+		return "", "", fmt.Errorf("failed creating download directory: %w", err)
+	}
 
-	filePath := filepath.Join(currentDir, "temp", "downloaded", title+".m4a")
-
-	file, err := os.Create(filePath)
+	yt, err := findYtDlp()
 	if err != nil {
 		return "", "", err
 	}
 
-	defer file.Close()
+	cookieArg := browserCookieArg()
+	denoPath := filepath.Join(os.Getenv("HOME"), ".local", "bin", "deno")
+	jsRuntime := ""
+	if _, err := os.Stat(denoPath); err == nil {
+		jsRuntime = fmt.Sprintf("deno:%s", denoPath)
+	}
 
-	_, err = io.Copy(file, stream)
+	baseArgs := []string{"--remote-components", "ejs:github", "--retries", "5", "--quiet", "--no-warnings"}
+	if jsRuntime != "" {
+		baseArgs = append(baseArgs, "--js-runtimes", jsRuntime)
+	}
+	if cookieArg != "" {
+		baseArgs = append(baseArgs, cookieArg)
+	}
+
+	args := append(baseArgs, "--print", "title", "--skip-download", url)
+	infoCmd := exec.Command(yt, args...)
+	titleOut, err := infoCmd.Output()
 	if err != nil {
-		return "", "", err
+		if ee, ok := err.(*exec.ExitError); ok {
+			return "", "", fmt.Errorf("yt-dlp failed: %s", string(ee.Stderr))
+		}
+		return "", "", fmt.Errorf("failed to get video info: %w", err)
+	}
+	title := sanitizeFilename(strings.TrimSpace(string(titleOut)))
+
+	outTmpl := filepath.Join(downloadDir, "%(title)s.%(ext)s")
+	args = append(baseArgs, "-x", "--audio-format", "m4a", "-o", outTmpl, url)
+	cmd := exec.Command(yt, args...)
+	err = cmd.Run()
+	if err != nil {
+		return "", "", fmt.Errorf("download failed: %w", err)
+	}
+
+	filePath := filepath.Join(downloadDir, title+".m4a")
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		entries, _ := os.ReadDir(downloadDir)
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), title) {
+				filePath = filepath.Join(downloadDir, e.Name())
+				break
+			}
+		}
 	}
 
 	return title, filePath, nil

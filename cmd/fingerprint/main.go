@@ -6,16 +6,33 @@ import (
 	"os"
 
 	"github.com/ravirraj/echoid/internal/audio"
+	"github.com/ravirraj/echoid/internal/config"
 	"github.com/ravirraj/echoid/internal/db"
 	"github.com/ravirraj/echoid/internal/fingerprint"
 	"github.com/ravirraj/echoid/internal/matcher"
 	peak "github.com/ravirraj/echoid/internal/peaks"
-	spectrogram "github.com/ravirraj/echoid/internal/spectogram"
+	"github.com/ravirraj/echoid/internal/spectrogram"
 )
+
+func usage() {
+	fmt.Fprintf(os.Stderr, `Usage: echoid <command> [options]
+
+Commands:
+  add     Index an audio file
+  match   Match an audio file against the index
+  listen  Record and match audio (default: 10 seconds)
+  youtube Download and index a YouTube video
+
+Options:
+  -h, --help  Show this help
+
+Use "echoid <command> -h" for command-specific help.
+`)
+}
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("usage: echoid [add|match|listen|youtube]")
+		usage()
 		os.Exit(1)
 	}
 
@@ -23,76 +40,111 @@ func main() {
 	case "add":
 		addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 		file := addCmd.String("file", "", "audio file to index")
-		songID := addCmd.String("id", *file, "song identifier")
+		songID := addCmd.String("id", "", "song identifier (defaults to filename)")
+		addCmd.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Usage: echoid add -file <path> [-id <name>]\n")
+			addCmd.PrintDefaults()
+		}
 		addCmd.Parse(os.Args[2:])
 
 		if *file == "" {
-			fmt.Println("error: -file is required")
-			return
+			addCmd.Usage()
+			os.Exit(1)
 		}
 
-		if err := runAdd(*file, *songID); err != nil {
+		id := *songID
+		if id == "" {
+			id = *file
+		}
+
+		if err := runAdd(*file, id); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		}
 
 	case "match":
 		matchCmd := flag.NewFlagSet("match", flag.ExitOnError)
 		file := matchCmd.String("file", "", "audio file to match")
+		matchCmd.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Usage: echoid match -file <path>\n")
+			matchCmd.PrintDefaults()
+		}
 		matchCmd.Parse(os.Args[2:])
 
 		if *file == "" {
-			fmt.Println("error: -file is required")
-			return
+			matchCmd.Usage()
+			os.Exit(1)
 		}
 
 		if err := runMatch(*file); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		}
 
 	case "listen":
+		listenCmd := flag.NewFlagSet("listen", flag.ExitOnError)
+		seconds := listenCmd.Int("seconds", 10, "recording duration in seconds")
+		listenCmd.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Usage: echoid listen [-seconds <n>]\n")
+			listenCmd.PrintDefaults()
+		}
+		listenCmd.Parse(os.Args[2:])
+
 		fmt.Println("  Recording...")
-		if err := recordAudio(10); err != nil {
+		if err := recordAudio(*seconds); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		}
 
 	case "youtube":
-		matchCmd := flag.NewFlagSet("youtube", flag.ExitOnError)
-		url := matchCmd.String("url", "", "YouTube URL")
-		matchCmd.Parse(os.Args[2:])
+		ytCmd := flag.NewFlagSet("youtube", flag.ExitOnError)
+		url := ytCmd.String("url", "", "YouTube URL")
+		ytCmd.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Usage: echoid youtube -url <youtube-url>\n")
+			ytCmd.PrintDefaults()
+		}
+		ytCmd.Parse(os.Args[2:])
 
 		if *url == "" {
-			fmt.Println("error: -url is required")
-			return
+			ytCmd.Usage()
+			os.Exit(1)
 		}
 
 		fmt.Println("  Fetching...")
 		title, filePath, err := audio.DownloadAudio(*url)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return
+			os.Exit(1)
 		}
 		fmt.Println("  Downloaded")
 
 		if err := runAdd(filePath, title); err != nil {
+			os.Remove(filePath)
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return
+			os.Exit(1)
 		}
 
-		os.Remove(filePath)
+		if err := os.Remove(filePath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove temp file: %v\n", err)
+		}
+
+	case "-h", "--help", "help":
+		usage()
 
 	default:
-		fmt.Printf("unknown command: %s\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
+		usage()
+		os.Exit(1)
 	}
 }
 
 func runAdd(file string, songID string) error {
 	var index *db.Index
 
-	if _, err := os.Stat("fingerprints.db"); err == nil {
-		var err error
-		index, err = db.LoadIndex("fingerprints.db")
+	if _, err := os.Stat(config.DBPath); err == nil {
+		index, err = db.LoadIndex(config.DBPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("loading index: %w", err)
 		}
 	} else {
 		index = db.NewIndex()
@@ -101,7 +153,7 @@ func runAdd(file string, songID string) error {
 	fmt.Println("  Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("loading audio: %w", err)
 	}
 
 	fmt.Println("  Generating fingerprints...")
@@ -112,8 +164,8 @@ func runAdd(file string, songID string) error {
 	fmt.Printf("  Peaks: %d | Fingerprints: %d\n", len(p), len(fps))
 
 	index.Add(songID, fps)
-	if err := index.Save("fingerprints.db"); err != nil {
-		return err
+	if err := index.Save(config.DBPath); err != nil {
+		return fmt.Errorf("saving index: %w", err)
 	}
 
 	fmt.Printf("  Indexed: %s\n", songID)
@@ -121,15 +173,15 @@ func runAdd(file string, songID string) error {
 }
 
 func runMatch(file string) error {
-	index, err := db.LoadIndex("fingerprints.db")
+	index, err := db.LoadIndex(config.DBPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("loading index: %w", err)
 	}
 
 	fmt.Println("  Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("loading audio: %w", err)
 	}
 
 	fmt.Println("  Matching...")
@@ -150,7 +202,16 @@ func runMatch(file string) error {
 func recordAudio(duration int) error {
 	filePath, err := audio.RecordAudio(duration)
 	if err != nil {
-		return err
+		return fmt.Errorf("recording audio: %w", err)
 	}
+	defer func() {
+		if err := os.Remove(filePath); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove temp file: %v\n", err)
+		}
+	}()
 	return runMatch(filePath)
+}
+
+func init() {
+	flag.Usage = usage
 }

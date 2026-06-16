@@ -5,6 +5,8 @@ import (
 	"github.com/ravirraj/echoid/internal/fingerprint"
 )
 
+// Match compares query fingerprints against a song index and returns
+// the best-matching song ID along with its match score.
 func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 	matchedHashes := 0
 
@@ -63,11 +65,6 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 			secondBest = songScore
 		}
 	}
-	println("Query Fingerprints:", len(query))
-	println("Matched Hashes:", matchedHashes)
-	println("Candidate Songs:", len(offsetVotes))
-	println("Best Score:", bestScore)
-	println("Second Best:", secondBest)
 	if bestScore == 0 {
 		return "", 0
 	}
@@ -90,11 +87,10 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 			return "", 0
 		}
 	}
-	println("RETURNING:", bestSong, bestScore)
-
 	return bestSong, bestScore
 }
 
+// max returns the larger of two integers.
 func max(a, b int) int {
 	if a > b {
 		return a

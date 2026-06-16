@@ -6,18 +6,22 @@ import (
 	"gonum.org/v1/gonum/dsp/fourier"
 )
 
+const (
+	windowSize = 2048
+	hopSize    = 512
+	maxBin     = 512
+)
+
+// GenerateSpectrogram computes a magnitude spectrogram from raw audio
+// samples using a Short-Time Fourier Transform (STFT) with a Hann
+// window.
 func GenerateSpectrogram(samples []float64) [][]float64 {
-
-	windowSize := 2048
-	hopSize := 512
-
 	spectrogram := [][]float64{}
 
 	hann := GenerateHann(windowSize)
 	fft := fourier.NewFFT(windowSize)
 
 	for i := 0; i+windowSize <= len(samples); i += hopSize {
-
 		rawFrame := samples[i : i+windowSize]
 
 		frameCopy := make([]float64, windowSize)
@@ -29,16 +33,14 @@ func GenerateSpectrogram(samples []float64) [][]float64 {
 
 		output := fft.Coefficients(nil, frameCopy)
 
-		// Only use first half of FFT (remove symmetric part) and limit to useful frequency range
-		// Use up to bin 512 (covers 0-12kHz at 48kHz sample rate, which is the most important range)
-		maxBin := 512
-		if len(output)/2 < maxBin {
-			maxBin = len(output) / 2
+		currentMaxBin := maxBin
+		if len(output)/2 < currentMaxBin {
+			currentMaxBin = len(output) / 2
 		}
 
-		magnitudes := make([]float64, maxBin)
+		magnitudes := make([]float64, currentMaxBin)
 
-		for k := 0; k < maxBin; k++ {
+		for k := 0; k < currentMaxBin; k++ {
 			realPart := real(output[k])
 			imagPart := imag(output[k])
 			magnitudes[k] = math.Sqrt(realPart*realPart + imagPart*imagPart)
@@ -50,8 +52,8 @@ func GenerateSpectrogram(samples []float64) [][]float64 {
 	return spectrogram
 }
 
+// GenerateHann creates a Hann window of length N.
 func GenerateHann(N int) []float64 {
-
 	result := make([]float64, N)
 
 	for n := 0; n < N; n++ {

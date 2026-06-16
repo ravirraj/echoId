@@ -6,6 +6,8 @@ import (
 	peak "github.com/ravirraj/echoid/internal/peaks"
 )
 
+// Fingerprint represents a hashed audio landmark derived from a pair
+// of peaks, storing their frequency bins, time delta, and anchor time.
 type Fingerprint struct {
 	Freq1      int
 	Freq2      int
@@ -13,6 +15,9 @@ type Fingerprint struct {
 	AnchorTime int
 }
 
+// GenerateFingerprints creates a set of Fingerprints from a list of
+// spectral peaks by pairing each anchor peak with nearby target peaks
+// within a constrained time window.
 func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 
 	if len(peaksList) == 0 {
