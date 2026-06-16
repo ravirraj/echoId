@@ -11,112 +11,85 @@ import (
 	"github.com/ravirraj/echoid/internal/matcher"
 	peak "github.com/ravirraj/echoid/internal/peaks"
 	spectrogram "github.com/ravirraj/echoid/internal/spectogram"
-	// "github.com/ravirraj/echoid/internal/spectrogram"
 )
 
 func main() {
-
 	if len(os.Args) < 2 {
-		fmt.Println("usage: echoid [add|match] <file>")
+		fmt.Println("usage: echoid [add|match|listen|youtube]")
 		os.Exit(1)
 	}
 
 	switch os.Args[1] {
-
 	case "add":
 		addCmd := flag.NewFlagSet("add", flag.ExitOnError)
-
 		file := addCmd.String("file", "", "audio file to index")
-		// songID := addCmd.String("id", *file, "song identifier")
-
-		addCmd.Parse(os.Args[2:])
 		songID := addCmd.String("id", *file, "song identifier")
 		addCmd.Parse(os.Args[2:])
 
-		fmt.Println(*file)
-		fmt.Println(*songID)
-
 		if *file == "" {
-			fmt.Println("please provide -file")
+			fmt.Println("error: -file is required")
 			return
 		}
 
-		// if *songID == "" {
-		// 	fmt.Println("Please Provide the id for the song")
-		// 	// return
-		// }
-
-		err := runAdd(*file, *songID)
-
-		if err != nil {
-			fmt.Println(err)
-			return
+		if err := runAdd(*file, *songID); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		}
 
 	case "match":
 		matchCmd := flag.NewFlagSet("match", flag.ExitOnError)
-
 		file := matchCmd.String("file", "", "audio file to match")
-
 		matchCmd.Parse(os.Args[2:])
 
 		if *file == "" {
-			fmt.Println("please provide -file")
+			fmt.Println("error: -file is required")
 			return
 		}
 
-		err := runMatch(*file)
-		if err != nil {
-			fmt.Println(err)
-			return
+		if err := runMatch(*file); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		}
 
 	case "listen":
-
-		fmt.Println("Recording.......")
-		err := recordAudio(10)
-		if err != nil {
-			return
+		fmt.Println("  Recording...")
+		if err := recordAudio(10); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		}
 
 	case "youtube":
-		matchCmd := flag.NewFlagSet("match", flag.ExitOnError)
-		url := matchCmd.String("url", "", "audio url to downlaoad")
-
+		matchCmd := flag.NewFlagSet("youtube", flag.ExitOnError)
+		url := matchCmd.String("url", "", "YouTube URL")
 		matchCmd.Parse(os.Args[2:])
+
 		if *url == "" {
-			fmt.Println("please provide -url")
+			fmt.Println("error: -url is required")
 			return
 		}
-		fmt.Println("DOWNLAODING SONG...")
+
+		fmt.Println("  Fetching...")
 		title, filePath, err := audio.DownloadAudio(*url)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return
+		}
+		fmt.Println("  Downloaded")
+
+		if err := runAdd(filePath, title); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return
 		}
 
-		err = runAdd(filePath, title)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		err = os.Remove(filePath)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		os.Remove(filePath)
 
 	default:
-		fmt.Println("unknown command:", os.Args[1])
+		fmt.Printf("unknown command: %s\n", os.Args[1])
 	}
-
 }
 
 func runAdd(file string, songID string) error {
-
 	var index *db.Index
 
 	if _, err := os.Stat("fingerprints.db"); err == nil {
+		var err error
 		index, err = db.LoadIndex("fingerprints.db")
 		if err != nil {
 			return err
@@ -125,74 +98,59 @@ func runAdd(file string, songID string) error {
 		index = db.NewIndex()
 	}
 
-	fmt.Println("LOADING AUDIO>>>>.....")
+	fmt.Println("  Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		return err
 	}
-	// fmt.Println("samples",samples[:20])
 
-	fmt.Println("Generating Fingerprints.....")
+	fmt.Println("  Generating fingerprints...")
 	spec := spectrogram.GenerateSpectrogram(samples)
-
 	p := peak.DetectPeaks(spec)
-	fmt.Println("Peaks:", len(p))
-
 	fps := fingerprint.GenerateFingerprints(p)
-	fmt.Println("fingerprints:", len(fps))
+
+	fmt.Printf("  Peaks: %d | Fingerprints: %d\n", len(p), len(fps))
 
 	index.Add(songID, fps)
-
-	err = index.Save("fingerprints.db")
-	if err != nil {
+	if err := index.Save("fingerprints.db"); err != nil {
 		return err
 	}
 
-	fmt.Println("song indexed:", songID)
+	fmt.Printf("  Indexed: %s\n", songID)
 	return nil
 }
 
 func runMatch(file string) error {
-
 	index, err := db.LoadIndex("fingerprints.db")
 	if err != nil {
-		fmt.Println("load error:", err)
 		return err
 	}
 
+	fmt.Println("  Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
-		fmt.Println("load error:", err)
 		return err
 	}
-	// fmt.Println(samples)
 
+	fmt.Println("  Matching...")
 	spec := spectrogram.GenerateSpectrogram(samples)
-	// fmt.Println(spec[:30])
-
 	p := peak.DetectPeaks(spec)
-
-	// fmt.Println(p[:3])
 	query := fingerprint.GenerateFingerprints(p)
-	fmt.Println("Query Peaks:", len(p))
-	fmt.Println("Query Fingerprints:", len(query))
-	// fmt.Println(query[:2])
-	song, score := matcher.Match(index, query)
 
-	fmt.Println("match:", song, "score:", score)
+	song, score := matcher.Match(index, query)
+	if song == "" {
+		fmt.Println("  No match found")
+	} else {
+		fmt.Printf("  Match: %s (score: %d)\n", song, score)
+	}
 
 	return nil
 }
 
 func recordAudio(duration int) error {
-	filePAth, err := audio.RecordAudio(duration)
-	fmt.Println(filePAth)
+	filePath, err := audio.RecordAudio(duration)
 	if err != nil {
 		return err
 	}
-	err = runMatch(filePAth)
-	if err != nil {
-		return err
-	}
-	return nil
+	return runMatch(filePath)
 }
