@@ -17,7 +17,7 @@ A command-line audio fingerprinting engine built in Go. Index songs, match unkno
 
 ## Demo
 
-https://github.com/user-attachments/assets/echoId_demo.mp4
+![EchoID Demo](public/videos/echoId_demo.gif)
 
 ## Usage
 
