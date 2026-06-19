@@ -27,7 +27,7 @@ func TestAdd(t *testing.T) {
 		{Freq1: 300, Freq2: 400, DeltaTime: 20, AnchorTime: 5},
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 10},
 	}
-	idx.Add("song1", fps)
+	idx.Add("song1", SongMeta{Title: "song1"}, fps)
 
 	if len(idx.Data) != 2 {
 		t.Errorf("expected 2 unique hash keys, got %d", len(idx.Data))
@@ -56,10 +56,10 @@ func TestAdd(t *testing.T) {
 
 func TestAddMultipleSongs(t *testing.T) {
 	idx := NewIndex()
-	idx.Add("song1", []fingerprint.Fingerprint{
+	idx.Add("song1", SongMeta{Title: "song1"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0},
 	})
-	idx.Add("song2", []fingerprint.Fingerprint{
+	idx.Add("song2", SongMeta{Title: "song2"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 5},
 	})
 
@@ -83,11 +83,11 @@ func TestAddMultipleSongs(t *testing.T) {
 
 func TestSaveAndLoadIndex(t *testing.T) {
 	orig := NewIndex()
-	orig.Add("song1", []fingerprint.Fingerprint{
+	orig.Add("song1", SongMeta{Title: "song1"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0},
 		{Freq1: 300, Freq2: 400, DeltaTime: 20, AnchorTime: 5},
 	})
-	orig.Add("song2", []fingerprint.Fingerprint{
+	orig.Add("song2", SongMeta{Title: "song2"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 10},
 	})
 
@@ -136,7 +136,7 @@ func BenchmarkSaveLoad(b *testing.B) {
 				AnchorTime: i,
 			}
 		}
-		idx.Add("song"+string(rune('A'+songID%26)), fps)
+		idx.Add("song"+string(rune('A'+songID%26)), SongMeta{Title: "song"}, fps)
 	}
 
 	b.ResetTimer()

@@ -26,7 +26,7 @@ func TestMatch_ExactMatch(t *testing.T) {
 			Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0,
 		}
 	}
-	idx.Add("song1", fps)
+	idx.Add("song1", db.SongMeta{Title: "song1"}, fps)
 
 	query := make([]fingerprint.Fingerprint, 20)
 	for i := range query {
@@ -46,7 +46,7 @@ func TestMatch_ExactMatch(t *testing.T) {
 
 func TestMatch_NoMatch(t *testing.T) {
 	idx := db.NewIndex()
-	idx.Add("song1", []fingerprint.Fingerprint{
+	idx.Add("song1", db.SongMeta{Title: "song1"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0},
 	})
 
@@ -62,7 +62,7 @@ func TestMatch_NoMatch(t *testing.T) {
 
 func TestMatch_ScoreBelowThreshold(t *testing.T) {
 	idx := db.NewIndex()
-	idx.Add("song1", []fingerprint.Fingerprint{
+	idx.Add("song1", db.SongMeta{Title: "song1"}, []fingerprint.Fingerprint{
 		{Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0},
 	})
 
@@ -88,7 +88,7 @@ func TestMatch_MultipleSongs(t *testing.T) {
 			Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0,
 		}
 	}
-	idx.Add("song1", fps1)
+	idx.Add("song1", db.SongMeta{Title: "song1"}, fps1)
 
 	fps2 := make([]fingerprint.Fingerprint, 10)
 	for i := range fps2 {
@@ -96,7 +96,7 @@ func TestMatch_MultipleSongs(t *testing.T) {
 			Freq1: 300, Freq2: 400, DeltaTime: 20, AnchorTime: 5,
 		}
 	}
-	idx.Add("song2", fps2)
+	idx.Add("song2", db.SongMeta{Title: "song2"}, fps2)
 
 	query := make([]fingerprint.Fingerprint, 10)
 	for i := range query {
@@ -123,7 +123,7 @@ func TestMatch_ConfidenceCheck(t *testing.T) {
 			Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 0,
 		}
 	}
-	idx.Add("song1", fps1)
+	idx.Add("song1", db.SongMeta{Title: "song1"}, fps1)
 
 	fps2 := make([]fingerprint.Fingerprint, 16)
 	for i := range fps2 {
@@ -131,7 +131,7 @@ func TestMatch_ConfidenceCheck(t *testing.T) {
 			Freq1: 100, Freq2: 200, DeltaTime: 10, AnchorTime: 5,
 		}
 	}
-	idx.Add("song2", fps2)
+	idx.Add("song2", db.SongMeta{Title: "song2"}, fps2)
 
 	query := make([]fingerprint.Fingerprint, 20)
 	for i := range query {
@@ -159,7 +159,7 @@ func BenchmarkMatch(b *testing.B) {
 				AnchorTime: i,
 			}
 		}
-		idx.Add("song"+string(rune('A'+songID%26)), fps)
+		idx.Add("song"+string(rune('A'+songID%26)), db.SongMeta{Title: "song"}, fps)
 	}
 
 	query := make([]fingerprint.Fingerprint, 100)

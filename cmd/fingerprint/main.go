@@ -4,12 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/ravirraj/echoid/internal/audio"
 	"github.com/ravirraj/echoid/internal/config"
 	"github.com/ravirraj/echoid/internal/db"
 	"github.com/ravirraj/echoid/internal/fingerprint"
 	"github.com/ravirraj/echoid/internal/matcher"
+	"github.com/ravirraj/echoid/internal/output"
 	peak "github.com/ravirraj/echoid/internal/peaks"
 	"github.com/ravirraj/echoid/internal/spectrogram"
 )
@@ -41,8 +44,10 @@ func main() {
 		addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 		file := addCmd.String("file", "", "audio file to index")
 		songID := addCmd.String("id", "", "song identifier (defaults to filename)")
+		artist := addCmd.String("artist", "", "artist name")
+		album := addCmd.String("album", "", "album name")
 		addCmd.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Usage: echoid add -file <path> [-id <name>]\n")
+			fmt.Fprintf(os.Stderr, "Usage: echoid add -file <path> [-id <name>] [-artist <name>] [-album <name>]\n")
 			addCmd.PrintDefaults()
 		}
 		addCmd.Parse(os.Args[2:])
@@ -57,8 +62,14 @@ func main() {
 			id = *file
 		}
 
-		if err := runAdd(*file, id); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		meta := db.SongMeta{
+			Title:  id,
+			Artist: *artist,
+			Album:  *album,
+		}
+
+		if err := runAdd(*file, id, meta); err != nil {
+			output.PrintError(err.Error())
 			os.Exit(1)
 		}
 
@@ -77,7 +88,7 @@ func main() {
 		}
 
 		if err := runMatch(*file); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			output.PrintError(err.Error())
 			os.Exit(1)
 		}
 
@@ -90,17 +101,19 @@ func main() {
 		}
 		listenCmd.Parse(os.Args[2:])
 
-		fmt.Println("  Recording...")
+		output.Listening()
 		if err := recordAudio(*seconds); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			output.PrintError(err.Error())
 			os.Exit(1)
 		}
 
 	case "youtube":
 		ytCmd := flag.NewFlagSet("youtube", flag.ExitOnError)
 		url := ytCmd.String("url", "", "YouTube URL")
+		artist := ytCmd.String("artist", "", "artist name (overrides metadata)")
+		album := ytCmd.String("album", "", "album name (overrides metadata)")
 		ytCmd.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Usage: echoid youtube -url <youtube-url>\n")
+			fmt.Fprintf(os.Stderr, "Usage: echoid youtube -url <youtube-url> [-artist <name>] [-album <name>]\n")
 			ytCmd.PrintDefaults()
 		}
 		ytCmd.Parse(os.Args[2:])
@@ -110,22 +123,31 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("  Fetching...")
-		title, filePath, err := audio.DownloadAudio(*url)
+		output.Stepf("Fetching...")
+		meta, filePath, err := audio.DownloadAudio(*url)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			output.PrintError(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println("  Downloaded")
+		output.Stepf("Downloaded")
 
-		if err := runAdd(filePath, title); err != nil {
+		if *artist != "" {
+			meta.Artist = *artist
+		}
+		if *album != "" {
+			meta.Album = *album
+		}
+
+		songID := sanitizeFilename(meta.Title)
+		dbMeta := db.SongMeta{Title: meta.Title, Artist: meta.Artist, Album: meta.Album}
+		if err := runAdd(filePath, songID, dbMeta); err != nil {
 			os.Remove(filePath)
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			output.PrintError(err.Error())
 			os.Exit(1)
 		}
 
 		if err := os.Remove(filePath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not remove temp file: %v\n", err)
+			output.Stepf("warning: could not remove temp file: %v", err)
 		}
 
 	case "-h", "--help", "help":
@@ -138,7 +160,7 @@ func main() {
 	}
 }
 
-func runAdd(file string, songID string) error {
+func runAdd(file string, songID string, meta db.SongMeta) error {
 	var index *db.Index
 
 	if _, err := os.Stat(config.DBPath); err == nil {
@@ -150,25 +172,25 @@ func runAdd(file string, songID string) error {
 		index = db.NewIndex()
 	}
 
-	fmt.Println("  Loading audio...")
+	output.Stepf("Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		return fmt.Errorf("loading audio: %w", err)
 	}
 
-	fmt.Println("  Generating fingerprints...")
+	output.Generating()
 	spec := spectrogram.GenerateSpectrogram(samples)
 	p := peak.DetectPeaks(spec)
 	fps := fingerprint.GenerateFingerprints(p)
 
-	fmt.Printf("  Peaks: %d | Fingerprints: %d\n", len(p), len(fps))
+	output.PrintFingerprintStats(len(p), len(fps))
 
-	index.Add(songID, fps)
+	index.Add(songID, meta, fps)
 	if err := index.Save(config.DBPath); err != nil {
 		return fmt.Errorf("saving index: %w", err)
 	}
 
-	fmt.Printf("  Indexed: %s\n", songID)
+	output.PrintIndexed(songID)
 	return nil
 }
 
@@ -178,22 +200,32 @@ func runMatch(file string) error {
 		return fmt.Errorf("loading index: %w", err)
 	}
 
-	fmt.Println("  Loading audio...")
+	output.Stepf("Loading audio...")
 	samples, err := audio.LoadAudio(file)
 	if err != nil {
 		return fmt.Errorf("loading audio: %w", err)
 	}
 
-	fmt.Println("  Matching...")
+	output.Matching()
+	start := time.Now()
 	spec := spectrogram.GenerateSpectrogram(samples)
 	p := peak.DetectPeaks(spec)
 	query := fingerprint.GenerateFingerprints(p)
 
 	song, score := matcher.Match(index, query)
+	elapsed := time.Since(start).Seconds()
+	_ = score
+
 	if song == "" {
-		fmt.Println("  No match found")
+		output.PrintNoMatch()
 	} else {
-		fmt.Printf("  Match: %s (score: %d)\n", song, score)
+		meta := index.Metadata[song]
+		title := meta.Title
+		if title == "" {
+			title = song
+		}
+
+		output.PrintResult(title, meta.Artist, meta.Album, elapsed)
 	}
 
 	return nil
@@ -214,4 +246,14 @@ func recordAudio(duration int) error {
 
 func init() {
 	flag.Usage = usage
+}
+
+func sanitizeFilename(name string) string {
+	replacer := strings.NewReplacer(
+		"/", "_", "\\", "_", ":", "_",
+		"*", "_", "?", "_", "\"", "_",
+		"<", "_", ">", "_", "|", "_",
+		" ", "_",
+	)
+	return replacer.Replace(name)
 }

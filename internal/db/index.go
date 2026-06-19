@@ -15,21 +15,31 @@ type Entry struct {
 	AnchorTime int
 }
 
+// SongMeta holds metadata for an indexed song.
+type SongMeta struct {
+	Title  string
+	Artist string
+	Album  string
+}
+
 // Index maps hashed fingerprint values to the list of song entries
 // that produced them.
 type Index struct {
-	Data map[uint64][]Entry
+	Data     map[uint64][]Entry
+	Metadata map[string]SongMeta
 }
 
 // NewIndex creates and returns a new empty Index.
 func NewIndex() *Index {
 	return &Index{
-		Data: make(map[uint64][]Entry),
+		Data:     make(map[uint64][]Entry),
+		Metadata: make(map[string]SongMeta),
 	}
 }
 
 // Add inserts fingerprints for a given song ID into the index.
-func (idx *Index) Add(songID string, fps []fingerprint.Fingerprint) {
+func (idx *Index) Add(songID string, meta SongMeta, fps []fingerprint.Fingerprint) {
+	idx.Metadata[songID] = meta
 	for _, fp := range fps {
 		hash := fingerprint.HashFingerprint(fp.Freq1, fp.Freq2, fp.DeltaTime)
 		idx.Data[hash] = append(idx.Data[hash], Entry{
@@ -48,16 +58,19 @@ func (idx *Index) Save(path string) error {
 	}
 	defer file.Close()
 
-	if err := file.Sync(); err != nil {
-		return fmt.Errorf("sync index file: %w", err)
-	}
-
 	enc := gob.NewEncoder(file)
-	if err := enc.Encode(idx.Data); err != nil {
+	payload := struct {
+		Data     map[uint64][]Entry
+		Metadata map[string]SongMeta
+	}{
+		Data:     idx.Data,
+		Metadata: idx.Metadata,
+	}
+	if err := enc.Encode(payload); err != nil {
 		return fmt.Errorf("encode index: %w", err)
 	}
 
-	return nil
+	return file.Sync()
 }
 
 // LoadIndex reads an Index from a gob-encoded file.
@@ -70,9 +83,15 @@ func LoadIndex(path string) (*Index, error) {
 
 	idx := NewIndex()
 	dec := gob.NewDecoder(file)
-	if err := dec.Decode(&idx.Data); err != nil {
+	payload := struct {
+		Data     map[uint64][]Entry
+		Metadata map[string]SongMeta
+	}{}
+	if err := dec.Decode(&payload); err != nil {
 		return nil, fmt.Errorf("decode index: %w", err)
 	}
+	idx.Data = payload.Data
+	idx.Metadata = payload.Metadata
 
 	return idx, nil
 }
