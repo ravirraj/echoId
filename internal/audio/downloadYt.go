@@ -9,6 +9,7 @@ import (
 )
 
 func findYtDlp() (string, error) {
+	// check PATH first, then common install locations
 	if p, err := exec.LookPath("yt-dlp"); err == nil {
 		return p, nil
 	}
@@ -28,6 +29,7 @@ func findYtDlp() (string, error) {
 }
 
 func browserCookieArg() string {
+	// try to find a browser config dir so yt-dlp can use saved cookies
 	for _, b := range []string{"firefox", "brave", "chromium", "chrome", "vivaldi"} {
 		var cfgDir string
 		switch b {
@@ -70,9 +72,6 @@ type YtMeta struct {
 	Album  string
 }
 
-// DownloadAudio downloads audio from a YouTube URL using yt-dlp. It
-// returns metadata (title, artist, album), the absolute path to the
-// downloaded audio file (in m4a format), and any error.
 func DownloadAudio(url string) (YtMeta, string, error) {
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -144,6 +143,7 @@ func DownloadAudio(url string) (YtMeta, string, error) {
 		return YtMeta{}, "", fmt.Errorf("download failed: %w", err)
 	}
 
+	// sometimes yt-dlp changes the filename, so scan the dir as a fallback
 	filePath := filepath.Join(downloadDir, sanitized+".m4a")
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		entries, _ := os.ReadDir(downloadDir)

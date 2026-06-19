@@ -39,7 +39,7 @@ func LoadWav(path string) ([]float64, error) {
 
 	if numChannel == 1 {
 		for _, s := range IntSamples {
-			samples = append(samples, float64(s)/32768.0)
+			samples = append(samples, float64(s)/32768.0) // normalize int16 to [-1, 1]
 		}
 	} else if numChannel == 2 {
 		for i := 0; i < len(IntSamples); i += 2 {

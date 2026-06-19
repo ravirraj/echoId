@@ -8,28 +8,22 @@ import (
 	"github.com/ravirraj/echoid/internal/fingerprint"
 )
 
-// Entry stores a song identifier and the anchor time of a matched
-// fingerprint.
 type Entry struct {
 	SongID     string
 	AnchorTime int
 }
 
-// SongMeta holds metadata for an indexed song.
 type SongMeta struct {
 	Title  string
 	Artist string
 	Album  string
 }
 
-// Index maps hashed fingerprint values to the list of song entries
-// that produced them.
 type Index struct {
 	Data     map[uint64][]Entry
 	Metadata map[string]SongMeta
 }
 
-// NewIndex creates and returns a new empty Index.
 func NewIndex() *Index {
 	return &Index{
 		Data:     make(map[uint64][]Entry),
@@ -37,7 +31,6 @@ func NewIndex() *Index {
 	}
 }
 
-// Add inserts fingerprints for a given song ID into the index.
 func (idx *Index) Add(songID string, meta SongMeta, fps []fingerprint.Fingerprint) {
 	idx.Metadata[songID] = meta
 	for _, fp := range fps {
@@ -49,8 +42,6 @@ func (idx *Index) Add(songID string, meta SongMeta, fps []fingerprint.Fingerprin
 	}
 }
 
-// Save writes the index data to a file using gob encoding. It syncs
-// the file to disk before closing.
 func (idx *Index) Save(path string) error {
 	file, err := os.Create(path)
 	if err != nil {
@@ -58,6 +49,7 @@ func (idx *Index) Save(path string) error {
 	}
 	defer file.Close()
 
+	// gob encode both maps together so they stay in sync
 	enc := gob.NewEncoder(file)
 	payload := struct {
 		Data     map[uint64][]Entry
@@ -73,7 +65,6 @@ func (idx *Index) Save(path string) error {
 	return file.Sync()
 }
 
-// LoadIndex reads an Index from a gob-encoded file.
 func LoadIndex(path string) (*Index, error) {
 	file, err := os.Open(path)
 	if err != nil {

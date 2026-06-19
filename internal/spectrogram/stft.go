@@ -12,9 +12,6 @@ const (
 	maxBin     = 512
 )
 
-// GenerateSpectrogram computes a magnitude spectrogram from raw audio
-// samples using a Short-Time Fourier Transform (STFT) with a Hann
-// window.
 func GenerateSpectrogram(samples []float64) [][]float64 {
 	spectrogram := [][]float64{}
 
@@ -27,6 +24,7 @@ func GenerateSpectrogram(samples []float64) [][]float64 {
 		frameCopy := make([]float64, windowSize)
 		copy(frameCopy, rawFrame)
 
+		// apply hann window to reduce spectral leakage
 		for j := 0; j < windowSize; j++ {
 			frameCopy[j] *= hann[j]
 		}
@@ -52,7 +50,6 @@ func GenerateSpectrogram(samples []float64) [][]float64 {
 	return spectrogram
 }
 
-// GenerateHann creates a Hann window of length N.
 func GenerateHann(N int) []float64 {
 	result := make([]float64, N)
 

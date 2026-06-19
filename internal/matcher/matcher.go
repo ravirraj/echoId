@@ -5,8 +5,6 @@ import (
 	"github.com/ravirraj/echoid/internal/fingerprint"
 )
 
-// Match compares query fingerprints against a song index and returns
-// the best-matching song ID along with its match score.
 func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 	matchedHashes := 0
 
@@ -32,7 +30,7 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 
 			offset := match.AnchorTime - fp.AnchorTime
 
-			// Bin nearby offsets together
+			// bin nearby offsets so slight timing differences still agree
 			offset = (offset / offsetBinSize) * offsetBinSize
 
 			if _, ok := offsetVotes[match.SongID]; !ok {
@@ -69,20 +67,15 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 		return "", 0
 	}
 
-	// Require minimum votes
-	minThreshold := max(len(query)/25, 15)
+	minThreshold := max(len(query)/25, 15) // need at least some fraction of query to match
 
 	if bestScore < minThreshold {
 		return "", 0
 	}
 
-	// Confidence check
+	// if top two results are too close, it's ambiguous
 	if secondBest > 0 {
-
 		confidence := float64(bestScore) / float64(secondBest)
-
-		// If top result is too close to second result,
-		// treat as ambiguous.
 		if confidence < 1.3 {
 			return "", 0
 		}
@@ -90,7 +83,6 @@ func Match(index *db.Index, query []fingerprint.Fingerprint) (string, int) {
 	return bestSong, bestScore
 }
 
-// max returns the larger of two integers.
 func max(a, b int) int {
 	if a > b {
 		return a

@@ -8,9 +8,6 @@ import (
 	"strconv"
 )
 
-// RecordAudio captures audio from the default PulseAudio source for the
-// given duration (in seconds) and returns the absolute path to the
-// resulting WAV file.
 func RecordAudio(duration int) (string, error) {
 	strDuration := strconv.Itoa(duration)
 	cmd := exec.Command(

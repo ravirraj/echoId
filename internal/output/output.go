@@ -19,6 +19,7 @@ const (
 )
 
 func init() {
+	// respect NO_COLOR convention (https://no-color.org/)
 	if os.Getenv("NO_COLOR") != "" {
 		_ = reset
 	}

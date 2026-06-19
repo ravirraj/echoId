@@ -1,9 +1,7 @@
 package fingerprint
 
-// HashFingerprint combines two frequency bins and a time delta into a
-// single 64-bit hash value for indexing and matching.
 func HashFingerprint(freq1, freq2, delta int) uint64 {
-
+	// pack three 16-bit values into a single uint64
 	var hash uint64
 
 	hash |= uint64(freq1&0xFFFF) << 32

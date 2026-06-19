@@ -6,8 +6,6 @@ import (
 	peak "github.com/ravirraj/echoid/internal/peaks"
 )
 
-// Fingerprint represents a hashed audio landmark derived from a pair
-// of peaks, storing their frequency bins, time delta, and anchor time.
 type Fingerprint struct {
 	Freq1      int
 	Freq2      int
@@ -15,11 +13,7 @@ type Fingerprint struct {
 	AnchorTime int
 }
 
-// GenerateFingerprints creates a set of Fingerprints from a list of
-// spectral peaks by pairing each anchor peak with nearby target peaks
-// within a constrained time window.
 func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
-
 	if len(peaksList) == 0 {
 		return nil
 	}
@@ -29,9 +23,9 @@ func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 	})
 
 	const (
-		fanOut      = 10
+		fanOut      = 10 // max pairs per anchor peak
 		minDelta    = 1
-		maxDelta    = 60
+		maxDelta    = 60 // don't look too far ahead
 		freqBinSize = 4
 		timeBinSize = 2
 	)
@@ -39,15 +33,11 @@ func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 	fingerprints := make([]Fingerprint, 0, len(peaksList)*fanOut)
 
 	for i := 0; i < len(peaksList); i++ {
-
 		anchor := peaksList[i]
-
 		pairsCreated := 0
 
 		for j := i + 1; j < len(peaksList) && pairsCreated < fanOut; j++ {
-
 			target := peaksList[j]
-
 			deltaTime := target.TimeIndex - anchor.TimeIndex
 
 			if deltaTime < minDelta {
@@ -58,6 +48,7 @@ func GenerateFingerprints(peaksList []peak.Peak) []Fingerprint {
 				break
 			}
 
+			// quantize to reduce sensitivity to small shifts
 			freq1 := (anchor.FreqIndex / freqBinSize) * freqBinSize
 			freq2 := (target.FreqIndex / freqBinSize) * freqBinSize
 			deltaTime = (deltaTime / timeBinSize) * timeBinSize

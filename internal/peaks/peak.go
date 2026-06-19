@@ -4,17 +4,12 @@ import (
 	"sort"
 )
 
-// Peak represents a local maximum in a spectrogram at a given time
-// and frequency bin with its magnitude.
 type Peak struct {
 	TimeIndex int
 	FreqIndex int
 	Magnitude float64
 }
 
-// DetectPeaks finds spectral peaks in a magnitude spectrogram by
-// locating local maxima within a time-frequency window and retaining
-// the strongest candidates per frame.
 func DetectPeaks(spectrogram [][]float64) []Peak {
 
 	if len(spectrogram) == 0 {
@@ -45,7 +40,7 @@ func DetectPeaks(spectrogram [][]float64) []Peak {
 
 		sort.Float64s(frameMags)
 
-		frameThreshold := frameMags[len(frameMags)*90/100]
+		frameThreshold := frameMags[len(frameMags)*90/100] // keep top 10% per frame
 
 		for f := freqWindow; f < len(frame)-freqWindow; f++ {
 
