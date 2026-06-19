@@ -15,6 +15,10 @@ A command-line audio fingerprinting engine built in Go. Index songs, match unkno
 
 ![Architecture](public/dig/echoid_architecture.png)
 
+## Demo
+
+https://github.com/user-attachments/assets/echoId_demo.mp4
+
 ## Usage
 
 ### Prerequisites
